@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # HOMEWORK 10
 
 ## 1. Username Validation:
@@ -24,3 +25,6 @@ Solution: Added logic to check for username uniqueness, preventing users from re
 
 Issue: Ensuring that URLs provided in user profiles are in a valid format to prevent broken links or malicious inputs.
 Solution: Implemented validation for URL fields such as profile_picture_url, linkedin_profile_url, and github_profile_url, ensuring they conform to a proper URL format.
+=======
+# HOMEWORK 10
+>>>>>>> 1d28f80225a5030b4f307f147ee75fdc24fcdd67
