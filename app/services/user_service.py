@@ -15,11 +15,22 @@ from uuid import UUID
 from app.services.email_service import EmailService
 from app.models.user_model import UserRole
 import logging
+import re
+
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
 class UserService:
+
+    @staticmethod
+    def validate_username(username: str) -> bool:
+        """
+        Validate the username to allow only alphanumeric characters and underscores,
+        and length between 3 and 30 characters.
+        """
+        return bool(re.match(r'^[a-zA-Z0-9_]{3,30}$', username))
+    
     @classmethod
     async def _execute_query(cls, session: AsyncSession, query):
         try:
@@ -53,10 +64,17 @@ class UserService:
     async def create(cls, session: AsyncSession, user_data: Dict[str, str], email_service: EmailService) -> Optional[User]:
         try:
             validated_data = UserCreate(**user_data).model_dump()
+
+            # Validate username
+            if 'username' in validated_data and not cls.validate_username(validated_data['username']):
+                logger.error("Invalid username. Must be 3-30 characters long and contain only alphanumeric characters and underscores.")
+                return None
+
             existing_user = await cls.get_by_email(session, validated_data['email'])
             if existing_user:
                 logger.error("User with given email already exists.")
                 return None
+
             validated_data['hashed_password'] = hash_password(validated_data.pop('password'))
             new_user = User(**validated_data)
             new_user.verification_token = generate_verification_token()
@@ -72,6 +90,7 @@ class UserService:
         except ValidationError as e:
             logger.error(f"Validation error during user creation: {e}")
             return None
+
 
     @classmethod
     async def update(cls, session: AsyncSession, user_id: UUID, update_data: Dict[str, str]) -> Optional[User]:
