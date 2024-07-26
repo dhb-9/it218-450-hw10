@@ -15,8 +15,6 @@ from uuid import UUID
 from app.services.email_service import EmailService
 from app.models.user_model import UserRole
 import logging
-import re
-
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -63,27 +61,29 @@ class UserService:
     @classmethod
     async def create(cls, session: AsyncSession, user_data: Dict[str, str], email_service: EmailService) -> Optional[User]:
         try:
+            # Validate user data with UserCreate schema
             validated_data = UserCreate(**user_data).model_dump()
-
-            # Validate username
-            if 'username' in validated_data and not cls.validate_username(validated_data['username']):
-                logger.error("Invalid username. Must be 3-30 characters long and contain only alphanumeric characters and underscores.")
-                return None
-
             existing_user = await cls.get_by_email(session, validated_data['email'])
             if existing_user:
                 logger.error("User with given email already exists.")
                 return None
-
             validated_data['hashed_password'] = hash_password(validated_data.pop('password'))
+            
+            # Create a new user object
             new_user = User(**validated_data)
             new_user.verification_token = generate_verification_token()
+            
+            # Generate a unique nickname
             new_nickname = generate_nickname()
             while await cls.get_by_nickname(session, new_nickname):
                 new_nickname = generate_nickname()
             new_user.nickname = new_nickname
+            
+            # Add the new user to the session and commit
             session.add(new_user)
             await session.commit()
+            
+            # Send verification email
             await email_service.send_verification_email(new_user)
             
             return new_user
@@ -211,3 +211,21 @@ class UserService:
             await session.commit()
             return True
         return False
+    
+    @staticmethod
+    def validate_password(password: str) -> bool:
+        """
+        Validate password strength:
+        - Minimum 8 characters
+        - At least one uppercase letter
+        - At least one lowercase letter
+        - At least one digit
+        - At least one special character
+        """
+        if (len(password) < 8 or
+            not re.search(r'[A-Z]', password) or
+            not re.search(r'[a-z]', password) or
+            not re.search(r'[0-9]', password) or
+            not re.search(r'[!@#$%^&*(),.?":{}|<>]', password)):
+            return False
+        return True

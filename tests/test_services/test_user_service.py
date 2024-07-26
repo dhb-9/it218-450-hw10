@@ -1,4 +1,6 @@
 from builtins import range
+from unittest.mock import patch
+
 import pytest
 from sqlalchemy import select
 from app.dependencies import get_settings
@@ -6,6 +8,29 @@ from app.models.user_model import User
 from app.services.user_service import UserService
 
 pytestmark = pytest.mark.asyncio
+
+@patch('app.services.email_service.send_email')
+async def test_create_user_with_valid_data(mock_send_email, db_session):
+    user_data = {
+        "email": "valid_user@example.com",
+        "password": "ValidPassword123!",
+    }
+    mock_send_email.return_value = None  # Simulate successful email sending
+    user = await UserService.create(db_session, user_data, mock_send_email)
+    assert user is not None
+    assert user.email == user_data["email"]
+
+@pytest.mark.asyncio
+@patch('app.services.email_service.send_email')
+async def test_register_user_with_valid_data(mock_send_email, db_session):
+    user_data = {
+        "email": "register_valid_user@example.com",
+        "password": "RegisterValid123!",
+    }
+    mock_send_email.return_value = None  # Simulate successful email sending
+    user = await UserService.register_user(db_session, user_data, mock_send_email)
+    assert user is not None
+    assert user.email == user_data["email"]
 
 # Test creating a user with valid data
 async def test_create_user_with_valid_data(db_session, email_service):
